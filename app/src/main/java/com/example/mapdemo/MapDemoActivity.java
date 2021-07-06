@@ -55,6 +55,8 @@ import static com.google.android.gms.location.LocationServices.getFusedLocationP
 @RuntimePermissions
 public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMapLongClickListener {
 
+    public static final String TAG = "MapDemoActivity";
+
     private SupportMapFragment mapFragment;
     private GoogleMap map;
     private LocationRequest mLocationRequest;
@@ -76,24 +78,30 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
         super.onCreate(savedInstanceState);
         setContentView(R.layout.map_demo_activity);
 
+        // Checks for API key in string resources
         if (TextUtils.isEmpty(getResources().getString(R.string.google_maps_api_key))) {
             throw new IllegalStateException("You forgot to supply a Google Maps API key");
         }
 
+        // Checking if Bundle savedInstanceState contains user's current location
         if (savedInstanceState != null && savedInstanceState.keySet().contains(KEY_LOCATION)) {
             // Since KEY_LOCATION was found in the Bundle, we can be sure that mCurrentLocation
             // is not null.
             mCurrentLocation = savedInstanceState.getParcelable(KEY_LOCATION);
         }
 
+        // Find map fragment in map_demo_activity.xml
         mapFragment = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map));
         if (mapFragment != null) {
+            // Begin asynchronous call for Google Map
             mapFragment.getMapAsync(new OnMapReadyCallback() {
                 @Override
+                // Kick off actions when map is loaded
                 public void onMapReady(GoogleMap map) {
-                    // Once map is loaded
-                    // Supported types include: MAP_TYPE_NORMAL, MAP_TYPE_SATELLITE
-                    // MAP_TYPE_TERRAIN, MAP_TYPE_HYBRID
+                    // Map has loaded!
+                    // Set map type --
+                    // -- Supported map types include: MAP_TYPE_NORMAL, MAP_TYPE_SATELLITE
+                    // -- MAP_TYPE_TERRAIN, MAP_TYPE_HYBRID
                     map.setMapType(GoogleMap.MAP_TYPE_SATELLITE);
                     // Load map
                     loadMap(map);
@@ -107,14 +115,19 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
     }
 
     protected void loadMap(GoogleMap googleMap) {
+        // Initialize map variable using passed GoogleMap
         map = googleMap;
         if (map != null) {
-            // Map is ready
+            // Map is ready!
+
             // Calls our onMapLongClick method, which inflates a DialogAlert (message_item.xml)
             map.setOnMapLongClickListener(this);
 
-            Toast.makeText(this, "Map Fragment was loaded properly!", Toast.LENGTH_SHORT).show();
+            Log.i(TAG, "Map Fragment was loaded properly!");
+
+            // Check current location once -- requires permission
             MapDemoActivityPermissionsDispatcher.getMyLocationWithPermissionCheck(this);
+            // Continuously updates current location -- requires permission
             MapDemoActivityPermissionsDispatcher.startLocationUpdatesWithPermissionCheck(this);
         } else {
             Toast.makeText(this, "Error - Map was null!!", Toast.LENGTH_SHORT).show();
@@ -124,21 +137,27 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        // Checks permissions and grant location services if granted
         MapDemoActivityPermissionsDispatcher.onRequestPermissionsResult(this, requestCode, grantResults);
     }
 
     @SuppressWarnings({"MissingPermission"})
     @NeedsPermission({Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION})
+    // Built-in function to check current user location
     void getMyLocation() {
+        // Sets location
         map.setMyLocationEnabled(true);
+        // Sets button to pin-point and move user camera to current location on Google Maps
         map.getUiSettings().setMyLocationButtonEnabled(true);
 
         FusedLocationProviderClient locationClient = getFusedLocationProviderClient(this);
+        // Checks the user's last checked in location
         locationClient.getLastLocation()
                 .addOnSuccessListener(new OnSuccessListener<Location>() {
                     @Override
                     public void onSuccess(Location location) {
                         if (location != null) {
+                            // Call onLocationChanged if the location is not null
                             onLocationChanged(location);
                         }
                     }
@@ -194,27 +213,34 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
     }
 
     @Override
+    // This method will only kick off if the app is started, the user exited to another app and came back
     protected void onResume() {
         super.onResume();
-
-        // Display the connection status
-
         if (mCurrentLocation != null) {
-            Toast.makeText(this, "GPS location was found!", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "GPS location was found!");
+            // Get current coordinates with latitude and longitute
             LatLng latLng = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
+            // Update the camera to move to current coordinates and set zoom value to 17 (10 is default)
             CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngZoom(latLng, 17);
+            // Invoke camera move animation
             map.animateCamera(cameraUpdate);
         } else {
-            Toast.makeText(this, "Current location was null, enable GPS on emulator!", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Current location was null, enable GPS on emulator!");
         }
+        // Continuous location updates -- requires permission
         MapDemoActivityPermissionsDispatcher.startLocationUpdatesWithPermissionCheck(this);
     }
 
     @NeedsPermission({Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION})
+    // Get continuous location updates on user's current coordinates
     protected void startLocationUpdates() {
+        // LocationRequest is a Play Services built-in method
         mLocationRequest = new LocationRequest();
+        // Sets battery/power priority settings when checking location continuously
         mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        // Sets standard interval for checking location, regardless of priority
         mLocationRequest.setInterval(UPDATE_INTERVAL);
+        // Sets fastest interval for checking location taking into account battery/power priority
         mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
 
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
@@ -238,31 +264,35 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
         if (location == null) {
             return;
         } else {
+            // Pan camera to user's current location as method is invoked and location != null
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(
                     new LatLng(location.getLatitude(),
                             location.getLongitude()), DEFAULT_ZOOM));
         }
 
         // Report to the UI that the location was updated
-
         mCurrentLocation = location;
         String msg = "Updated Location: " +
                 Double.toString(location.getLatitude()) + "," +
                 Double.toString(location.getLongitude());
-        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
+        Log.i(TAG, "Updated Location: " + msg);
     }
 
     public void onSaveInstanceState(Bundle savedInstanceState) {
         savedInstanceState.putParcelable(KEY_LOCATION, mCurrentLocation);
         super.onSaveInstanceState(savedInstanceState);
+        // Parcelable bundle that passes user's current location
     }
 
     @Override
+    // This call is made when the user long clicks anywhere on the map
     public void onMapLongClick(LatLng latLng) {
         showAlertDialogForPoint(latLng);
     }
 
+    // Method to display AlertDialog to user
     private void showAlertDialogForPoint(final LatLng latLng) {
+        // This block inflates the dialog UI and creates the pop up for the user
         View messageView = LayoutInflater.from(MapDemoActivity.this).inflate(R.layout.message_item, null);
         AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(this);
         alertDialogBuilder.setView(messageView);
@@ -272,6 +302,7 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
         alertDialog.setButton(DialogInterface.BUTTON_POSITIVE, "OK",
                 new DialogInterface.OnClickListener() {
                     @Override
+                    // Method is called when user pressed OK on dialog alert
                     public void onClick(DialogInterface dialog, int which) {
                         // Define color of marker icon
                         BitmapDescriptor defaultMarker =
@@ -296,6 +327,7 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
                                 .snippet(snippet)
                                 .icon(customMarker));
 
+                        // Animated pin drop effect
                         dropPinEffect(marker);
                     }
                 });
@@ -342,6 +374,7 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
         });
     }
 
+    // This method converts vector assets into Bitmaps for use as map markers
     private BitmapDescriptor bitmapDescriptorFromVector(Context context, int vectorResId) {
         Drawable vectorDrawable = ContextCompat.getDrawable(context, vectorResId);
         vectorDrawable.setBounds(0, 0, vectorDrawable.getIntrinsicWidth(), vectorDrawable.getIntrinsicHeight());
