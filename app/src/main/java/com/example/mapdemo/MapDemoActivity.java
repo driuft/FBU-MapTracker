@@ -157,6 +157,10 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
                     @Override
                     public void onSuccess(Location location) {
                         if (location != null) {
+                            // Pan camera to user's current location as method is invoked and location != null
+                            map.moveCamera(CameraUpdateFactory.newLatLngZoom(
+                                    new LatLng(location.getLatitude(),
+                                            location.getLongitude()), DEFAULT_ZOOM));
                             // Call onLocationChanged if the location is not null
                             onLocationChanged(location);
                         }
@@ -263,11 +267,6 @@ public class MapDemoActivity extends AppCompatActivity implements GoogleMap.OnMa
         // GPS may be turned off
         if (location == null) {
             return;
-        } else {
-            // Pan camera to user's current location as method is invoked and location != null
-            map.moveCamera(CameraUpdateFactory.newLatLngZoom(
-                    new LatLng(location.getLatitude(),
-                            location.getLongitude()), DEFAULT_ZOOM));
         }
 
         // Report to the UI that the location was updated
